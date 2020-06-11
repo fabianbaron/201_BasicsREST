@@ -1,0 +1,152 @@
+# El objetivo de este proyecto es crear una API REST usando el framework Django y el framework Django Restful
+
+## Prerrequisitos
+- Tener instalado el framework Django (https://www.djangoproject.com/download/)
+- Tener instalado el framework Django REST (https://www.django-rest-framework.org/#installation)
+- Opcionalmente instalar markdown y django-filter
+
+## Procedimiento para crear la API REST:
+
+### Crear y ejecutar el proyecto (servidor) django
+1. Situar la consola de comando en el directorio donde se quiere crear el proyecto usando el comando cd (en Windows)
+
+2. Crear el proyecto de Django usando el comando en la terminal:
+    - django-admin startproject NombreProyecto
+    - si dice que el comando no se reconoce, entonces se debe buscar el archivo django-admin.py y ejecutar:
+    python [ruta de python]\site-packages\django\bin\django-admin.py startproject NombreProyecto
+
+    - Se debería crear automáticamente la carpeta con el nombre del proyecto y los archivos del proyecto:
+        - NombreProyecto
+            -NombreProyecto
+                - settings.py  # Tiene las configuraciones del sition web, Ej. complementos instalados, plantillas, etc
+                - urls.py  # Para agregar las urls de las diferentes web apps creadas en el servidor
+            -manage.py  # Este archivo sirve para administrar el sitio web del proyecto, iniciar servidor web, crear app
+
+3. Hacer la "migración" y crear tablas de datos
+    - cambiar el terminal al directorio del proyecto ($ cd NombreProyecto)
+    - $ python manage.py migrate
+    - Se crea la base de datos db.sqlite3
+
+4. Iniciar el servidor
+    - Terminal en el directorio del archivo manage.py
+    - $ python manage.py runserver
+    - Debería iniciar un servidor de desarrollo en localhost:8000
+
+5. Verificar en el explorador web
+    - http://localhost:8000
+    - Debería abrir el sition de bienvenida de django
+    - En la terminal que corre el servidor debería aparecer el log del servidor
+
+6. Crear el usuario administrador del servidor
+    - Terminal en el directorio del archivo manage.py
+    - $ python manage.py createsuperuser
+    - Colocar usuario y contraseña cuando lo pida
+
+7. Verificar el sitio de administrador
+    - http://localhost:8000/admin/
+    - loggearse con el usuario y contraseña
+    - Debería entrar al sitio donde se maneja la base de datos del servidor (crear usuarios y grupos)
+    - Si no carga es posible que haya que esperar a que el servidor se reinicie (automáticamente)
+
+8. Crear la app
+    - Terminal en el directorio del archivo manage.py
+    - $ python manage.py startapp NombreApp
+    - Debería crearse una carpeta con el nombre de la app dentro de la carpeta principal del proyecto (NombreProyecto)
+    - Dentro de la carpeta de la aplicación deberían crearse los archivos
+        - __init__.py  # Registra la carpeta de la app como un módulo de python
+        - admin.py  # Para registrar las clases de los modelos de datos
+        - apps.py  # Donde se configura la web app.
+        - models.py  # Donde se crean las clases de modelos de bases de datos
+        - tests.py  # Para pruebas
+        - views.py  # Para crear las funciones de views y renderizar las plantillas html
+
+9. Registrar la app y el framework REST en el servidor
+    - Archivo settings.py del servidor
+    - Agregar el elemento 'NombreApp' a la lista INSTALLED_APPS
+    - Agregar el elemento 'rest_framework' a la lista INSTALLED_APPS
+
+10. Crear modelos de datos de la app
+    - En el archivo models.py de la app:
+        - from django.db import models
+        - crear clase del modelo de datos que herede de models.Model
+        - crear los campos del modelo de datos usando los métodos de la clase models
+            Ej: nombre = nombre = models.CharField(max_length=10)
+
+11. Registrar los modelos en app/admin.py
+    - from .models import modelo1, modelo2, etc
+    - admin.site.register(modelo1)
+    - actualizar la estructura de datos
+        - $ python manage.py makemigrations
+        - $ python manage.py migrate
+
+12. Verificar en la página de administración que aparezca el modelo de datos
+
+13. Crear clase serialize para convertir modelos a json
+    - Crear archivo python en la carpeta de la app para los serializadores
+    - Importar serializer del rest_framework y los modelos de datos de la app
+        from rest_framework import serializers
+        from .models import ModelosDeDatos
+    - Crear la clase de serialización que hereda de serializers.ModelSerializer
+    - Crear una subclase de nombre Meta que tiene los campos de los modelos
+        model = ModelosDeDatos  # Éste campo tiene que llamarse model
+        fields = ('nombre', 'apellido')  # Opción 1. Tiene que tener éste nombre para que funcione con el rest_framework
+        fields = '__all__'  # Opción 2 cuando no hay muchos campos en el modelo
+
+14. Crear las "vistas" de django para las respuestas de la API
+    - en views.py de la app:
+        from .models import ModelosDeDatos  # Importar los modelos de datos
+        from .serializador import SerializadorModeloDeDatos  # El serializador para convertir a json u otro formato
+
+        # Primera opción
+        from rest_framework.views import APIView
+        from rest_framework.response import Response
+
+        class Endpoint(APIView):
+            def get(self, request):  # Implementación del método get en el endpoint
+                empleados1 = Empleados.objects.all()
+                serializador = EmpleadosSerializer(empleados1, many=True)
+                return Response(serializador.data)
+
+            def post_empleado(self):
+                pass
+
+        # Otra opción (más automática)
+        from rest_framework import viewsets
+
+        class EndPoint2(viewsets.ModelViewSet):
+            queryset = Empleados.objects.all()  # Debe tener el nombre queryset para que pueda generar las urls automáticamente
+            serializer_class = EmpleadosSerializer  # Debe tener el nombre serializer_class
+
+
+15. Rutear las urls
+    - Crear un arhcivo urls.py en la carpeta de la web app con:
+        from django.urls import path, include
+        from .views import , Endpoint, Endpoint2  # etc clases (views) que renderizan las diferentes páginas
+
+        from rest_framework import routers  # Crea Urls para todos los objetos de la vista (Endpoint2)
+
+        myrouter = routers.DefaultRouter()  # Instanciar el objeto router que crea las rutas de los datos automáticamente
+        myrouter.register('url_raiz_enrutador', Endpoint2, basename=None)  # Registrar la view que contiene el modelo de datos
+
+        urlpatterns = [
+        path('urlpagina1/', Endpoint, name='Nombre pagina 1'),
+        path('', include(myrouter.urls))  # Se coloca en la raiz de la app
+        ]
+    - En el archivo urls.py del servidor:
+        from django.urls import path, include
+
+        urlpatterns = [
+        path('admin/', admin.site.urls),
+        path('urlapp/', include('NombreApp.urls')),  # Url raiz de la app
+        ]
+
+16. Verificar en explorador web:
+    - http://127.0.0.1:8000/ulrapp/
+    - Debería mostrar una página diciendo: "The default basic root view for DefaultRouter" y una dirección a la ruta
+      base del enrutador: "url_raiz_enrutador": "http://127.0.0.1:8000/app/url_raiz_enrutador/"
+    - http://127.0.0.1:8000/app/url_raiz_enrutador/
+    - Debería mostrar los objetos en la base de datos, en formato JSON
+    - http://127.0.0.1:8000/app/url_raiz_enrutador/<id>
+    - Debería mostrar sólo la información del objeto <id>
+
+Listo
